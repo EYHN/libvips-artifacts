@@ -464,10 +464,10 @@ local:\n\
 };" > vips.map
 PKG_CONFIG="pkg-config --static" CFLAGS="${CFLAGS} -O3" CXXFLAGS="${CXXFLAGS} -O3" ./autogen.sh \
   --host=${CHOST} --prefix=${TARGET} --enable-shared --disable-static --disable-dependency-tracking \
-  --disable-debug --disable-deprecated --disable-introspection --disable-modules --without-radiance \
-  --without-analyze --without-ppm --without-fftw --without-pdfium --without-poppler --without-OpenEXR \
-  --without-libjxl --without-libopenjp2 --without-openslide --without-matio --without-nifti \
-  --without-cfitsio --without-magick
+  --disable-debug --disable-deprecated --disable-introspection --disable-modules --without-doxygen \
+  --without-radiance --without-analyze --without-ppm --without-fftw --without-pdfium --without-poppler \
+  --without-OpenEXR --without-libjxl --without-libopenjp2 --without-openslide --without-matio \
+  --without-nifti --without-cfitsio --without-magick
 # https://docs.fedoraproject.org/en-US/packaging-guidelines/#_removing_rpath
 sed -i'.bak' 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool
 # Link libvips.so.42 statically into libvips-cpp.so.42
