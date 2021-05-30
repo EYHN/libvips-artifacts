@@ -104,34 +104,36 @@ unset PKG_CONFIG_PATH
 CURL="curl --silent --location --retry 3 --retry-max-time 30"
 
 # Dependency version numbers
-VERSION_ZLIB_NG=2.0.2
+VERSION_ZLIB_NG=2.0.3
 VERSION_FFI=3.3
-VERSION_GLIB=2.68.0
-VERSION_XML2=2.9.10
+VERSION_GLIB=2.68.2
+VERSION_XML2=2.9.12
 VERSION_GSF=1.14.47
 VERSION_EXIF=0.6.22
 VERSION_LCMS2=2.12
 VERSION_MOZJPEG=4.0.3
 VERSION_PNG16=1.6.37
-VERSION_SPNG=0.6.2
+VERSION_SPNG=0.6.3
 VERSION_IMAGEQUANT=2.4.1
 VERSION_WEBP=1.2.0
-VERSION_TIFF=4.2.0
+VERSION_TIFF=4.3.0
 VERSION_ORC=0.4.32
 VERSION_GETTEXT=0.21
-VERSION_GDKPIXBUF=2.42.4
+VERSION_GDKPIXBUF=2.42.6
 VERSION_FREETYPE=2.10.4
-VERSION_EXPAT=2.3.0
+VERSION_EXPAT=2.4.1
 VERSION_FONTCONFIG=2.13.93
-VERSION_HARFBUZZ=2.8.0
+VERSION_HARFBUZZ=2.8.1
 VERSION_PIXMAN=0.40.0
 VERSION_CAIRO=1.17.4
 VERSION_FRIBIDI=1.0.10
-VERSION_PANGO=1.48.4
-VERSION_SVG=2.51.0
+VERSION_PANGO=1.48.5
+VERSION_SVG=2.51.2
 VERSION_GIF=5.1.4
-VERSION_AOM=3.0.0
-VERSION_HEIF=1.11.0
+VERSION_AOM=3.1.0
+VERSION_HEIF=1.12.0
+VERSION_OPENJPEG=2.4.0
+VERSION_POPPLER=21.05.0
 
 # Remove patch version component
 without_patch() {
@@ -171,8 +173,10 @@ version_latest "fribidi" "$VERSION_FRIBIDI" "857"
 version_latest "pango" "$VERSION_PANGO" "11783"
 version_latest "svg" "$VERSION_SVG" "5420"
 #version_latest "gif" "$VERSION_GIF" "1158" # v5.1.5+ provides a Makefile only so will require custom cross-compilation setup
-#version_latest "aom" "$VERSION_AOM" "17628" # latest version in release monitoring is a release candidate
+version_latest "aom" "$VERSION_AOM" "17628" # latest version in release monitoring is a release candidate
 version_latest "heif" "$VERSION_HEIF" "64439"
+version_latest "openjpeg" "$VERSION_OPENJPEG" "2550"
+version_latest "poppler" "$VERSION_POPPLER" "3686"
 if [ "$ALL_AT_VERSION_LATEST" = "false" ]; then exit 1; fi
 
 # Download and build dependencies from source
@@ -339,17 +343,16 @@ $CURL https://download.gnome.org/sources/gdk-pixbuf/$(without_patch $VERSION_GDK
 cd ${DEPS}/gdkpixbuf
 # Disable tests and thumbnailer
 sed -i'.bak' "/subdir('tests')/{N;d;}" meson.build
+sed -i'.bak' "/post-install/{N;N;N;N;d;}" meson.build
 # Disable the built-in loaders for BMP, GIF, ICO, PNM, XPM, XBM, TGA, ICNS and QTIF
-sed -i'.bak' "/\[ 'bmp'/{N;N;N;d;}" gdk-pixbuf/meson.build
-sed -i'.bak' "/\[ 'pnm'/d" gdk-pixbuf/meson.build
-sed -i'.bak' "/\[ 'xpm'/{N;N;N;N;d;}" gdk-pixbuf/meson.build
+sed -i'.bak' "/'bmp':/{N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;d;}" gdk-pixbuf/meson.build
+sed -i'.bak' "/'pnm':/{N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;N;d;}" gdk-pixbuf/meson.build
 # Skip executables
 sed -i'.bak' "/gdk-pixbuf-csource/{N;N;d;}" gdk-pixbuf/meson.build
 sed -i'.bak' "/loaders_cache = custom/{N;N;N;N;N;N;N;N;N;c\\
   loaders_cache = []\\
   loaders_dep = declare_dependency()
 }" gdk-pixbuf/meson.build
-sed -i'.bak' "/gdk-pixbuf-query-loaders/d" build-aux/post-install.sh
 # Ensure meson can find libjpeg when cross-compiling
 sed -i'.bak' "s/has_header('jpeglib.h')/has_header('jpeglib.h', args: '-I\/target\/include')/g" meson.build
 sed -i'.bak' "s/cc.find_library('jpeg'/dependency('libjpeg'/g" meson.build
@@ -462,6 +465,30 @@ cd ${DEPS}/gif
 CFLAGS="${CFLAGS} -O3" ./configure --host=${CHOST} --prefix=${TARGET} --enable-static --disable-shared --disable-dependency-tracking
 make install-strip
 
+mkdir ${DEPS}/openjpeg
+$CURL https://github.com/uclouvain/openjpeg/archive/v${VERSION_OPENJPEG}.tar.gz | tar xzC ${DEPS}/openjpeg --strip-components=1
+cd ${DEPS}/openjpeg
+mkdir build
+cd build
+LDFLAGS=${LDFLAGS/\$/} cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${TARGET} \
+  -DCMAKE_TOOLCHAIN_FILE=${ROOT}/Toolchain.cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_CODEC=OFF
+make install/strip
+
+mkdir ${DEPS}/poppler
+$CURL https://poppler.freedesktop.org/poppler-${VERSION_POPPLER}.tar.xz | tar xJC ${DEPS}/poppler --strip-components=1
+cd ${DEPS}/poppler
+# Disable tests, and add missing private dependency to poppler pkg-config file
+sed -i'.bak' '/add_subdirectory(test)/d' CMakeLists.txt
+sed -i'.bak' '/-lpoppler/i\
+Requires.private: libopenjp2
+' poppler.pc.cmake
+mkdir build
+cd build
+LDFLAGS=${LDFLAGS/\$/} cmake .. -DCMAKE_TOOLCHAIN_FILE=${ROOT}/Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${TARGET} \
+  -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF -DENABLE_SPLASH=OFF -DENABLE_UTILS=OFF \
+  -DENABLE_CPP=OFF -DENABLE_GTK_DOC=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_LIBDIR=lib
+make install/strip
+
 mkdir ${DEPS}/vips
 $CURL https://github.com/libvips/libvips/releases/download/v${VERSION_VIPS}/vips-${VERSION_VIPS}.tar.gz | tar xzC ${DEPS}/vips --strip-components=1
 cd ${DEPS}/vips
@@ -474,7 +501,7 @@ PKG_CONFIG="pkg-config --static" CFLAGS="${CFLAGS} -O3" CXXFLAGS="${CXXFLAGS} -O
   --host=${CHOST} --prefix=${TARGET} --enable-shared --disable-static --disable-dependency-tracking \
   --disable-debug --disable-deprecated --disable-introspection --without-analyze --without-cfitsio --without-fftw \
   --without-magick --without-matio --without-nifti --without-OpenEXR \
-  --without-openslide --without-pdfium --without-poppler --without-ppm --without-radiance \
+  --without-openslide --without-pdfium --without-ppm --without-radiance \
   ${LINUX:+LDFLAGS="$LDFLAGS -Wl,-Bsymbolic-functions -Wl,--version-script=$DEPS/vips/vips.map"}
 # https://docs.fedoraproject.org/en-US/packaging-guidelines/#_removing_rpath
 sed -i'.bak' 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool
@@ -578,6 +605,8 @@ printf "{\n\
   \"webp\": \"${VERSION_WEBP}\",\n\
   \"xml\": \"${VERSION_XML2}\",\n\
   \"zlib-ng\": \"${VERSION_ZLIB_NG}\"\n\
+  \"poppler\": \"${VERSION_POPPLER}\",\n\
+  \"openjpeg\": \"${VERSION_OPENJPEG}\"\n\
 }" >versions.json
 
 # Add third-party notices
