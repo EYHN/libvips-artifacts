@@ -132,6 +132,8 @@ VERSION_SVG=2.52.4
 VERSION_AOM=3.2.0
 VERSION_HEIF=1.12.0
 VERSION_CGIF=0.0.2
+VERSION_OPENJPEG=2.4.0
+VERSION_POPPLER=21.11.0
 
 # Remove patch version component
 without_patch() {
@@ -183,6 +185,8 @@ version_latest "svg" "$VERSION_SVG" "5420"
 version_latest "aom" "$VERSION_AOM" "17628"
 version_latest "heif" "$VERSION_HEIF" "64439"
 #version_latest "cgif" "$VERSION_CGIF" "" # not yet in release monitoring
+version_latest "openjpeg" "$VERSION_OPENJPEG" "2550"
+version_latest "poppler" "$VERSION_POPPLER" "3686"
 if [ "$ALL_AT_VERSION_LATEST" = "false" ]; then exit 1; fi
 
 # Download and build dependencies from source
@@ -492,6 +496,30 @@ CFLAGS="${CFLAGS} -O3" meson setup _build --default-library=static --buildtype=r
 ninja -C _build
 ninja -C _build install
 
+mkdir ${DEPS}/openjpeg
+$CURL https://github.com/uclouvain/openjpeg/archive/v${VERSION_OPENJPEG}.tar.gz | tar xzC ${DEPS}/openjpeg --strip-components=1
+cd ${DEPS}/openjpeg
+mkdir build
+cd build
+LDFLAGS=${LDFLAGS/\$/} cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${TARGET} \
+  -DCMAKE_TOOLCHAIN_FILE=${ROOT}/Toolchain.cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_CODEC=OFF
+make install/strip
+
+mkdir ${DEPS}/poppler
+$CURL https://poppler.freedesktop.org/poppler-${VERSION_POPPLER}.tar.xz | tar xJC ${DEPS}/poppler --strip-components=1
+cd ${DEPS}/poppler
+# Disable tests, and add missing private dependency to poppler pkg-config file
+sed -i'.bak' '/add_subdirectory(test)/d' CMakeLists.txt
+sed -i'.bak' '/-lpoppler/i\
+Requires.private: libopenjp2
+' poppler.pc.cmake
+mkdir build
+cd build
+LDFLAGS=${LDFLAGS/\$/} cmake .. -DCMAKE_TOOLCHAIN_FILE=${ROOT}/Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${TARGET} \
+  -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF -DENABLE_BOOST=OFF -DENABLE_UTILS=OFF \
+  -DENABLE_CPP=OFF -DENABLE_GTK_DOC=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_LIBDIR=lib
+make install/strip
+
 mkdir ${DEPS}/vips
 $CURL https://github.com/libvips/libvips/releases/download/v${VERSION_VIPS}/vips-${VERSION_VIPS}.tar.gz | tar xzC ${DEPS}/vips --strip-components=1
 cd ${DEPS}/vips
@@ -505,7 +533,7 @@ PKG_CONFIG="pkg-config --static" CFLAGS="${CFLAGS} -O3" CXXFLAGS="${CXXFLAGS} -O
   --disable-debug --disable-deprecated --disable-introspection --disable-modules --without-doxygen \
   --without-analyze --without-cfitsio --without-fftw --without-libjxl --without-libopenjp2 \
   --without-magick --without-matio --without-nifti --without-OpenEXR \
-  --without-openslide --without-pdfium --without-poppler --without-ppm --without-radiance \
+  --without-openslide --without-pdfium --without-ppm --without-radiance \
   ${LINUX:+LDFLAGS="$LDFLAGS -Wl,-Bsymbolic-functions -Wl,--version-script=$DEPS/vips/vips.map"}
 # https://docs.fedoraproject.org/en-US/packaging-guidelines/#_removing_rpath
 sed -i'.bak' 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool
@@ -609,6 +637,8 @@ printf "{\n\
   \"webp\": \"${VERSION_WEBP}\",\n\
   \"xml\": \"${VERSION_XML2}\",\n\
   \"zlib-ng\": \"${VERSION_ZLIB_NG}\"\n\
+  \"poppler\": \"${VERSION_POPPLER}\",\n\
+  \"openjpeg\": \"${VERSION_OPENJPEG}\"\n\
 }" >versions.json
 
 # Add third-party notices
