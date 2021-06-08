@@ -33,10 +33,9 @@ used under the terms of the following licences:
 | pixman        | MIT Licence                                                                                               |
 | proxy-libintl | LGPLv3                                                                                                    |
 | zlib-ng       | [zlib Licence](https://github.com/zlib-ng/zlib-ng/blob/develop/LICENSE.md)                                |
-
-Use of libraries under the terms of the LGPLv3 is via the
-"any later version" clause of the LGPLv2 or LGPLv2.1.
+| poppler       | GPLv2                                                                                                     |
+| openjpeg      | [BSD 2-Clause](https://github.com/uclouvain/openjpeg/blob/master/LICENSE)                                 |
 
 Please report any errors or omissions via  
 https://github.com/lovell/sharp-libvips/issues/new or  
-https://github.com/kleisauke/libvips-packaging/issues/new
+https://github.com/EYHN/libvips-artifacts/issues/new
