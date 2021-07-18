@@ -179,7 +179,7 @@ version_latest "aom" "$VERSION_AOM" "17628"
 version_latest "heif" "$VERSION_HEIF" "64439"
 version_latest "openjpeg" "$VERSION_OPENJPEG" "2550"
 version_latest "poppler" "$VERSION_POPPLER" "3686"
-if [ "$ALL_AT_VERSION_LATEST" = "false" ]; then exit 1; fi
+# if [ "$ALL_AT_VERSION_LATEST" = "false" ]; then exit 1; fi
 
 # Download and build dependencies from source
 
